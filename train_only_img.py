@@ -154,6 +154,7 @@ def save_best_fold(model, train_df, val_df, all_probs_val, best_acc):
     torch.save(model.state_dict(), BEST_MODEL_PATH)
     print(f">>> New best Accuracy: {best_acc:.4f}, saved model to {BEST_MODEL_PATH}")
 
+    # 保存训练集和验证集的预测概率
     train_loader = DataLoader(ImageOnlyDataset(train_df, transform=image_transform),
                               batch_size=BATCH_SIZE)
     train_probs = predict_probs(model, train_loader)
@@ -170,12 +171,24 @@ def save_best_fold(model, train_df, val_df, all_probs_val, best_acc):
     combined_df.to_csv('./output2/img_train_val_probs.csv', index=False)
     print("最优折训练集和验证集预测概率已保存至 './output2/img_train_val_probs.csv'")
 
-    train_df_processed = preprocess_clinical_data(train_df_sorted, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
-    val_df_processed = preprocess_clinical_data(val_df_sorted, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
+    # train_df_processed = preprocess_clinical_data(train_df_sorted, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
+    # val_df_processed = preprocess_clinical_data(val_df_sorted, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
+    # train_df_processed.to_csv('./output2/best_fold_train.csv', index=False)
+    # val_df_processed.to_csv('./output2/best_fold_val.csv', index=False)
+    # print("已保存最佳折训练集和验证集数据（按exam_id排序）")
+
+    # 删除 'prob' 列，确保只保留原始特征
+    train_df_no_prob = train_df_sorted.drop(columns=['prob'])
+    val_df_no_prob = val_df_sorted.drop(columns=['prob'])
+
+    # 再进行临床特征预处理
+    train_df_processed = preprocess_clinical_data(train_df_no_prob, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
+    val_df_processed = preprocess_clinical_data(val_df_no_prob, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
+
+    # 保存
     train_df_processed.to_csv('./output2/best_fold_train.csv', index=False)
     val_df_processed.to_csv('./output2/best_fold_val.csv', index=False)
-    print("已保存最佳折训练集和验证集数据（按exam_id排序）")
-
+    print("已保存最佳折训练集和验证集数据（已去除 prob 列，按 exam_id 排序）")
 
 # 5折交叉验证训练，保存每折模型并保留最佳准确率模型
 if __name__ == '__main__':
@@ -245,45 +258,6 @@ if __name__ == '__main__':
         if fold_acc > best_acc:
             best_acc = fold_acc
             save_best_fold(model, train_df, val_df, all_probs, best_acc)
-            # torch.save(model.state_dict(), BEST_MODEL_PATH)
-            # print(f">>> New best Accuracy: {best_acc:.4f}, saved model to {BEST_MODEL_PATH}")
-            #
-            # # 预测训练集概率
-            # train_loader_for_pred = DataLoader(ImageOnlyDataset(train_df, transform=image_transform),
-            #                                    batch_size=BATCH_SIZE)
-            #
-            # train_probs = []
-            # train_labels = []
-            # model.eval()
-            # with torch.no_grad():
-            #     for imgs, labels in train_loader_for_pred:
-            #         imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
-            #         outputs = model(imgs)
-            #         probs = torch.softmax(outputs, dim=1)[:, 1]
-            #         train_probs.extend(probs.cpu().numpy())
-            #         train_labels.extend(labels.cpu().numpy())
-            #
-            # train_df_with_probs = train_df.copy()
-            # train_df_with_probs['prob'] = train_probs
-            # train_df_sorted = train_df_with_probs.sort_values(by='exam_id').reset_index(drop=True)
-            #
-            # val_df_with_probs = val_df.copy()
-            # val_df_with_probs['prob'] = all_probs
-            # val_df_sorted = val_df_with_probs.sort_values(by='exam_id').reset_index(drop=True)
-            #
-            # # 合并训练集和验证集数据及预测概率
-            # combined_df = pd.concat([train_df_sorted, val_df_sorted], axis=0).reset_index(drop=True)
-            #
-            # # 保存到csv文件
-            # combined_df.to_csv('./output/best_fold_train_val_probs.csv', index=False)
-            # print("最优折的训练集和验证集预测概率已保存至 './output/best_fold_train_val_probs.csv'")
-            #
-            # # 保存训练集和验证集数据（预处理后的CSV）
-            # train_df_processed = preprocess_clinical_data(train_df, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
-            # val_df_processed = preprocess_clinical_data(val_df, CLINICAL_CATEGORICAL_VARS, CLINICAL_CONTINUOUS_VARS)
-            # train_df_processed.to_csv('./output/best_fold_train.csv', index=False)
-            # val_df_processed.to_csv('./output/best_fold_val.csv', index=False)
-            # print("已保存最佳折的训练集为 './output/best_fold_train.csv'，验证集为 './output/best_fold_val.csv'")
 
     print(f"\n5-fold CV done. Best Accuracy: {best_acc:.4f}")
 
